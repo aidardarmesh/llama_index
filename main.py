@@ -3,12 +3,11 @@ load_dotenv()
 from llama_index.core.agent import ReActAgent
 from llama_index.llms.openai import OpenAI
 from llama_index.core.tools import FunctionTool
-from llama_index.core import SimpleDirectoryReader, VectorStoreIndex, Settings
-from llama_index.core.tools import QueryEngineTool
-from llama_parse import LlamaParse
+from llama_index.core import Settings
+from llama_index.tools.yahoo_finance import YahooFinanceToolSpec
 
 # settings
-Settings.llm = OpenAI(model="gpt-3.5-turbo",temperature=0)
+Settings.llm = OpenAI(model="gpt-4o",temperature=0)
 
 # function tools
 def multiply(a: float, b: float) -> float:
@@ -23,38 +22,11 @@ def add(a: float, b: float) -> float:
 
 add_tool = FunctionTool.from_defaults(fn=add)
 
-documents2 = LlamaParse(result_type="markdown").load_data(
-    "./data/2023_canadian_budget.pdf"
-)
-index2 = VectorStoreIndex.from_documents(documents2)
-query_engine2 = index2.as_query_engine()
+finance_tools = YahooFinanceToolSpec().to_tool_list()
+finance_tools.extend([multiply_tool, add_tool])
 
-# response = query_engine.query("What was the total amount of the 2023 Canadian federal budget?")
-# print(response)
+agent = ReActAgent.from_tools(finance_tools, verbose=True)
 
-# rag pipeline as a tool
-budget_tool = QueryEngineTool.from_defaults(
-    query_engine2,
-    name="canadian_budget_2023",
-    description="A RAG engine with some basic facts about the 2023 Canadian federal budget."
-)
-
-agent = ReActAgent.from_tools([multiply_tool, add_tool, budget_tool], verbose=True)
-
-response = agent.chat(
-    "How much exactly was allocated to a tax credit to promote investment in green technologies in the 2023 Canadian federal budget?"
-)
-
-print(response)
-
-response = agent.chat(
-    "How much was allocated to a implement a means-tested dental care program in the 2023 Canadian federal budget?"
-)
-
-print(response)
-
-response = agent.chat(
-    "How much was the total of those two allocations added together? Use a tool to answer any questions."
-)
+response = agent.chat("What is the current price of NVDA?")
 
 print(response)

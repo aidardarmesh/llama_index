@@ -5,6 +5,10 @@ from llama_index.core.workflow import (
     Workflow,
     step,
 )
+from llama_index.utils.workflow import (
+    draw_all_possible_flows,
+    draw_most_recent_execution,
+)
 
 # `pip install llama-index-llms-openai` if you don't already have it
 from llama_index.llms.openai import OpenAI
@@ -36,9 +40,11 @@ class JokeFlow(Workflow):
 
 
 async def main():
+    draw_all_possible_flows(JokeFlow, filename="joke_flow_all.html")
     w = JokeFlow(timeout=60, verbose=False)
     result = await w.run(topic="pirates")
     print(result)
+    draw_most_recent_execution(w, filename="joke_flow_recent.html")
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ from llama_index.core.workflow import (
     StartEvent,
     StopEvent,
     Workflow,
+    Context,
     step,
 )
 from llama_index.utils.workflow import (
@@ -18,13 +19,17 @@ class JokeEvent(Event):
     joke: str
 
 
+class ProgressEvent(Event):
+    msg: str
+
+
 class JokeFlow(Workflow):
     llm = OpenAI()
 
     @step
-    async def generate_joke(self, ev: StartEvent) -> JokeEvent:
+    async def generate_joke(self, ctx: Context, ev: StartEvent) -> JokeEvent:
         topic = ev.topic
-
+        ctx.write_event_to_stream(ProgressEvent(msg="Joke generation is happening"))
         prompt = f"Write your best joke about {topic}."
         response = await self.llm.acomplete(prompt)
         print(response)
@@ -42,8 +47,11 @@ class JokeFlow(Workflow):
 async def main():
     draw_all_possible_flows(JokeFlow, filename="joke_flow_all.html")
     w = JokeFlow(timeout=60, verbose=False)
-    result = await w.run(topic="pirates")
-    print(result)
+    handler = w.run(topic="pirates")
+    async for event in handler.stream_events():
+        print(event)
+    result = await handler
+    print(str(result))
     draw_most_recent_execution(w, filename="joke_flow_recent.html")
 
 

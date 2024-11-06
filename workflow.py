@@ -6,6 +6,7 @@ from llama_index.core.workflow import (
     Event,
 )
 from llama_index.utils.workflow import draw_all_possible_flows
+from llama_index.core.workflow.retry_policy import ConstantDelayRetryPolicy
 
 
 class FirstEvent(Event):
@@ -17,7 +18,7 @@ class SecondEvent(Event):
 
 
 class MyWorkflow(Workflow):
-    @step
+    @step(retry_policy=ConstantDelayRetryPolicy(delay=5, maximum_attempts=10))
     async def step_one(self, ev: StartEvent) -> FirstEvent:
         print(ev.first_input)
         return FirstEvent(first_output="First step complete.")
@@ -34,7 +35,7 @@ class MyWorkflow(Workflow):
 
 
 async def main():
-    w = MyWorkflow(timeout=1, verbose=True)
+    w = MyWorkflow(timeout=10, verbose=False)
     result = await w.run(first_input="Start the workflow.")
     print(result)
     draw_all_possible_flows(w, filename="multi_step_workflow.html")

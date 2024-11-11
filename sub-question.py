@@ -76,7 +76,7 @@ class SubQuestionQueryEngine(Workflow):
         print(f"Sub-question is {ev.question}")
 
         agent = ReActAgent.from_tools(
-            await ctx.get("tools"), llm=await ctx.get("llm"), verbose=True
+            await ctx.get("tools"), llm=await ctx.get("llm"), verbose=True, max_iterations=100
         )
         response = agent.chat(ev.question)
 
@@ -118,4 +118,53 @@ class SubQuestionQueryEngine(Workflow):
 draw_all_possible_flows(
     SubQuestionQueryEngine, filename="sub_question_query_engine.html"
 )
+
+folder = "./data/sf_budgets/"
+files = os.listdir(folder)
+
+query_engine_tools = []
+for file in files:
+    year = file.split(" - ")[0]
+    index_persist_path = f"./storage/budget-{year}/"
+
+    if os.path.exists(index_persist_path):
+        storage_context = StorageContext.from_defaults(
+            persist_dir=index_persist_path
+        )
+        index = load_index_from_storage(storage_context)
+    else:
+        documents = SimpleDirectoryReader(
+            input_files=[folder + file]
+        ).load_data()
+        index = VectorStoreIndex.from_documents(documents)
+        index.storage_context.persist(index_persist_path)
+
+    engine = index.as_query_engine()
+    query_engine_tools.append(
+        QueryEngineTool(
+            query_engine=engine,
+            metadata=ToolMetadata(
+                name=f"budget_{year}",
+                description=f"Information about San Francisco's budget in {year}",
+            ),
+        )
+    )
+
+
+async def main():
+    engine = SubQuestionQueryEngine(timeout=200, verbose=True)
+    llm = OpenAI(model="gpt-4o")
+    result = await engine.run(
+        llm=llm,
+        tools=query_engine_tools,
+        query="How has the total amount of San Francisco's budget changed from 2016 to 2023?",
+    )
+
+    print(result)
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    asyncio.run(main())
 
